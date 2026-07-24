@@ -108,14 +108,14 @@ class SampleData {
 
   // ─── Skills ───────────────────────────────────────────────────────────────────
   static const List<SkillModel> skills = [
-    SkillModel(name: 'Java', category: 'Programming', proficiency: 0.82, color: Color(0xFFFF6584)),
-    SkillModel(name: 'Python', category: 'Programming', proficiency: 0.75, color: Color(0xFF34A853)),
-    SkillModel(name: 'Data Structures', category: 'CS Core', proficiency: 0.70, color: Color(0xFF6C63FF)),
-    SkillModel(name: 'SQL', category: 'Database', proficiency: 0.65, color: Color(0xFFF9AB00)),
-    SkillModel(name: 'System Design', category: 'Architecture', proficiency: 0.45, color: Color(0xFF54A0FF)),
-    SkillModel(name: 'React', category: 'Web', proficiency: 0.60, color: Color(0xFF00BCD4)),
-    SkillModel(name: 'Communication', category: 'Soft Skills', proficiency: 0.80, color: Color(0xFFFF9F43)),
-    SkillModel(name: 'Problem Solving', category: 'Aptitude', proficiency: 0.72, color: Color(0xFF9B59B6)),
+    SkillModel(id: 'sk1', name: 'Java', category: 'Programming', proficiency: 0.82, color: Color(0xFFFF6584)),
+    SkillModel(id: 'sk2', name: 'Python', category: 'Programming', proficiency: 0.75, color: Color(0xFF34A853)),
+    SkillModel(id: 'sk3', name: 'Data Structures', category: 'CS Core', proficiency: 0.70, color: Color(0xFF6C63FF)),
+    SkillModel(id: 'sk4', name: 'SQL', category: 'Database', proficiency: 0.65, color: Color(0xFFF9AB00)),
+    SkillModel(id: 'sk5', name: 'System Design', category: 'Architecture', proficiency: 0.45, color: Color(0xFF54A0FF)),
+    SkillModel(id: 'sk6', name: 'React', category: 'Web', proficiency: 0.60, color: Color(0xFF00BCD4)),
+    SkillModel(id: 'sk7', name: 'Communication', category: 'Soft Skills', proficiency: 0.80, color: Color(0xFFFF9F43)),
+    SkillModel(id: 'sk8', name: 'Problem Solving', category: 'Aptitude', proficiency: 0.72, color: Color(0xFF9B59B6)),
   ];
 
   // ─── AI Features ─────────────────────────────────────────────────────────────

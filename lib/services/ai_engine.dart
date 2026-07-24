@@ -4,6 +4,15 @@ class AIResponseEngine {
   static String generate(String input) {
     final lower = input.toLowerCase();
 
+    // ── Greetings ─────────────────────────────────────────────────────────────
+    if (lower.contains('hello') || lower.contains('hi') || lower.contains('hey')) {
+      return 'Hello! I am your AI Academic Mentor. How can I help you with your studies or career today?';
+    }
+
+    if (lower.contains('who are you') || lower.contains('what can you do')) {
+      return 'I am an AI designed to help you manage your academic life. I can explain complex topics (Java, Python, DSA, DBMS), help with study planning, analyze your CGPA, and even conduct mock interviews!';
+    }
+
     // ── Java ──────────────────────────────────────────────────────────────────
     if (lower.contains('java')) {
       if (lower.contains('oops') || lower.contains('oop') || lower.contains('object')) {

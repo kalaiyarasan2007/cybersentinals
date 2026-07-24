@@ -12,6 +12,7 @@ import 'package:student_insight_ai/screens/planner/pomodoro_screen.dart';
 import 'package:student_insight_ai/screens/planner/habit_tracker_screen.dart';
 import 'package:student_insight_ai/screens/profile/settings_screen.dart';
 import 'package:student_insight_ai/screens/analytics/placement_screen.dart';
+import 'package:student_insight_ai/screens/analytics/mock_interview_screen.dart';
 import 'package:student_insight_ai/screens/profile/notifications_screen.dart';
 import 'package:student_insight_ai/screens/timetable/timetable_screen.dart';
 import 'package:student_insight_ai/screens/calendar/calendar_screen.dart';
@@ -45,6 +46,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/pomodoro', builder: (_, __) => const PomodoroScreen()),
       GoRoute(path: '/habit-tracker', builder: (_, __) => const HabitTrackerScreen()),
       GoRoute(path: '/placement', builder: (_, __) => const PlacementScreen()),
+      GoRoute(path: '/mock-interview', builder: (_, __) => const MockInterviewScreen()),
       GoRoute(path: '/notifications', builder: (_, __) => const NotificationsScreen()),
       GoRoute(path: '/timetable', builder: (_, __) => const TimetableScreen()),
       GoRoute(path: '/calendar', builder: (_, __) => const CalendarScreen()),

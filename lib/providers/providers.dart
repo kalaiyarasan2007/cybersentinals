@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,6 +7,68 @@ import 'package:student_insight_ai/core/data/sample_data.dart';
 import 'package:student_insight_ai/repositories/auth_repository.dart';
 import 'package:student_insight_ai/services/ai_engine.dart';
 
+// ─── Persistence Service ───────────────────────────────────────────────────────
+class PersistenceService {
+  static const String _studentKey = 'user_student_data';
+  static const String _subjectsKey = 'user_subjects_data';
+  static const String _timetableKey = 'user_timetable_data';
+  static const String _skillsKey = 'user_skills_data';
+
+  static Future<void> saveStudent(StudentModel s) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_studentKey, jsonEncode(s.toMap()));
+  }
+
+  static Future<StudentModel?> loadStudent() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString(_studentKey);
+    if (data == null) return null;
+    return StudentModel.fromMap(jsonDecode(data));
+  }
+
+  static Future<void> saveSubjects(List<SubjectModel> subjects) async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = subjects.map((s) => s.toMap()).toList();
+    await prefs.setString(_subjectsKey, jsonEncode(list));
+  }
+
+  static Future<List<SubjectModel>?> loadSubjects() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString(_subjectsKey);
+    if (data == null) return null;
+    final List<dynamic> list = jsonDecode(data);
+    return list.map((item) => SubjectModel.fromMap(item)).toList();
+  }
+
+  static Future<void> saveTimetable(List<TimetableEntry> entries) async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = entries.map((e) => e.toMap()).toList();
+    await prefs.setString(_timetableKey, jsonEncode(list));
+  }
+
+  static Future<List<TimetableEntry>?> loadTimetable() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString(_timetableKey);
+    if (data == null) return null;
+    final List<dynamic> list = jsonDecode(data);
+    return list.map((item) => TimetableEntry.fromMap(item)).toList();
+  }
+
+  static Future<void> saveSkills(List<SkillModel> skills) async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = skills.map((s) => s.toMap()).toList();
+    await prefs.setString(_skillsKey, jsonEncode(list));
+  }
+
+  static Future<List<SkillModel>?> loadSkills() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString(_skillsKey);
+    if (data == null) return null;
+    final List<dynamic> list = jsonDecode(data);
+    return list.map((item) => SkillModel.fromMap(item)).toList();
+  }
+}
+
 // ─── Auth Providers ────────────────────────────────────────────────────────────
 final authRepositoryProvider = Provider<AuthRepository>((ref) => AuthRepository());
 
@@ -13,8 +76,15 @@ final currentUserProvider = StateProvider<StudentModel?>((ref) => null);
 
 final initializationProvider = FutureProvider<void>((ref) async {
   try {
-    final studentData = await ref.read(authRepositoryProvider).getCurrentUser();
-    ref.read(currentUserProvider.notifier).state = studentData;
+    // Load student data from persistence first
+    final persistedStudent = await PersistenceService.loadStudent();
+    if (persistedStudent != null) {
+      ref.read(currentUserProvider.notifier).state = persistedStudent;
+    } else {
+      final studentData = await ref.read(authRepositoryProvider).getCurrentUser();
+      ref.read(currentUserProvider.notifier).state = studentData;
+      if (studentData != null) PersistenceService.saveStudent(studentData);
+    }
   } catch (_) {}
 });
 
@@ -48,14 +118,88 @@ final studentProvider = StateNotifierProvider<StudentNotifier, StudentModel>((re
 
 class StudentNotifier extends StateNotifier<StudentModel> {
   StudentNotifier(super.s);
-  void update(StudentModel s) => state = s;
-  void updateField({String? name, String? bio, String? phone, String? department, String? semester}) {
-    state = state.copyWith(name: name, bio: bio, phone: phone, department: department, semester: semester);
+  void update(StudentModel s) {
+    state = s;
+    PersistenceService.saveStudent(s);
+  }
+  void updateField({String? name, String? bio, String? phone, String? department, String? semester, double? cgpa, double? attendancePercent, double? placementScore, int? codingStreak}) {
+    state = state.copyWith(
+      name: name, bio: bio, phone: phone, department: department, semester: semester,
+      cgpa: cgpa, attendancePercent: attendancePercent, placementScore: placementScore,
+      codingStreak: codingStreak,
+    );
+    PersistenceService.saveStudent(state);
   }
 }
 
 // ─── Subjects Provider ────────────────────────────────────────────────────────
-final subjectsProvider = StateProvider<List<SubjectModel>>((ref) => SampleData.subjects);
+final subjectsProvider = StateNotifierProvider<SubjectsNotifier, List<SubjectModel>>((ref) => SubjectsNotifier());
+
+class SubjectsNotifier extends StateNotifier<List<SubjectModel>> {
+  SubjectsNotifier() : super([]) { _load(); }
+
+  Future<void> _load() async {
+    final loaded = await PersistenceService.loadSubjects();
+    if (loaded != null) {
+      state = loaded;
+    } else {
+      state = SampleData.subjects; // Initial default
+      PersistenceService.saveSubjects(state);
+    }
+  }
+
+  void add(SubjectModel s) {
+    state = [...state, s];
+    PersistenceService.saveSubjects(state);
+  }
+
+  void delete(String id) {
+    state = state.where((s) => s.id != id).toList();
+    PersistenceService.saveSubjects(state);
+  }
+
+  void updateMarks(String id, double marks) {
+    state = [for (final s in state) if (s.id == id) s.copyWith(marks: marks) else s];
+    PersistenceService.saveSubjects(state);
+  }
+
+  void updateAttendance(String id, double percent) {
+    state = [for (final s in state) if (s.id == id) s.copyWith(attendancePercent: percent) else s];
+    PersistenceService.saveSubjects(state);
+  }
+
+  void updateCredits(String id, int credits) {
+    state = [for (final s in state) if (s.id == id) s.copyWith(credits: credits) else s];
+    PersistenceService.saveSubjects(state);
+  }
+}
+
+// ─── Skills Provider ──────────────────────────────────────────────────────────
+final skillsProvider = StateNotifierProvider<SkillsNotifier, List<SkillModel>>((ref) => SkillsNotifier());
+
+class SkillsNotifier extends StateNotifier<List<SkillModel>> {
+  SkillsNotifier() : super(SampleData.skills) { _load(); }
+
+  Future<void> _load() async {
+    final loaded = await PersistenceService.loadSkills();
+    if (loaded != null) state = loaded;
+  }
+
+  void updateProficiency(String id, double p) {
+    state = [for (final s in state) if (s.id == id) s.copyWith(proficiency: p) else s];
+    PersistenceService.saveSkills(state);
+  }
+
+  void add(SkillModel s) {
+    state = [...state, s];
+    PersistenceService.saveSkills(state);
+  }
+
+  void delete(String id) {
+    state = state.where((s) => s.id != id).toList();
+    PersistenceService.saveSkills(state);
+  }
+}
 
 // ─── Assignments Provider ─────────────────────────────────────────────────────
 final assignmentsProvider = StateNotifierProvider<AssignmentNotifier, List<AssignmentModel>>((ref) => AssignmentNotifier());
@@ -101,8 +245,6 @@ class AIChatNotifier extends StateNotifier<List<ChatMessage>> {
     addMessage(AIResponseEngine.generate(text), false);
     _isLoading = false;
   }
-
-
 }
 
 // ─── Habits Provider ──────────────────────────────────────────────────────────
@@ -164,21 +306,35 @@ final notificationsProvider = StateProvider<List<AppNotification>>((ref) => Samp
 final timetableProvider = StateNotifierProvider<TimetableNotifier, List<TimetableEntry>>((ref) => TimetableNotifier());
 
 class TimetableNotifier extends StateNotifier<List<TimetableEntry>> {
-  TimetableNotifier() : super(SampleData.timetable);
+  TimetableNotifier() : super([]) { _load(); }
 
-  void add(TimetableEntry entry) => state = [...state, entry];
-  void delete(String id) => state = state.where((e) => e.id != id).toList();
-  void update(TimetableEntry updated) =>
-      state = [for (final e in state) if (e.id == updated.id) updated else e];
+  Future<void> _load() async {
+    final loaded = await PersistenceService.loadTimetable();
+    if (loaded != null) state = loaded;
+  }
+
+  void add(TimetableEntry entry) {
+    state = [...state, entry];
+    PersistenceService.saveTimetable(state);
+  }
+
+  void delete(String id) {
+    state = state.where((e) => e.id != id).toList();
+    PersistenceService.saveTimetable(state);
+  }
+
+  void update(TimetableEntry updated) {
+    state = [for (final e in state) if (e.id == updated.id) updated else e];
+    PersistenceService.saveTimetable(state);
+  }
 
   List<TimetableEntry> forDay(int dayIndex) =>
       state.where((e) => e.dayIndex == dayIndex).toList()
         ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
   List<TimetableEntry> forToday() {
-    // DateTime weekday: 1=Mon ... 6=Sat, 7=Sun
     final today = DateTime.now().weekday;
-    if (today == 7) return []; // Sunday
+    if (today == 7) return [];
     return forDay(today - 1);
   }
 }
@@ -242,4 +398,3 @@ class ProfilePhotoNotifier extends StateNotifier<String?> {
     await prefs.remove('profile_photo_path');
   }
 }
-

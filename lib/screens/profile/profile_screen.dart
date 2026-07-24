@@ -82,12 +82,18 @@ class ProfileScreen extends ConsumerWidget {
                 const SizedBox(height: 20),
 
                 // Skills
-                Text('Skills', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Skills', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
+                    TextButton(onPressed: () => context.push('/placement'), child: const Text('Manage')),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: AppTheme.cardDecoration(isDark: isDark),
-                  child: Column(children: SampleData.skills.take(5).map((s) => Padding(
+                  child: Column(children: ref.watch(skillsProvider).take(5).map((s) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Row(children: [
                       SizedBox(width: 120, child: Text(s.name, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight))),

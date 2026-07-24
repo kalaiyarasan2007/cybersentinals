@@ -103,16 +103,28 @@ class StudentModel {
 class SubjectModel {
   final String id, name, code;
   final double marks, maxMarks, attendancePercent;
+  final int credits;
   final Color color;
   final IconData icon;
 
   const SubjectModel({
     required this.id, required this.name, required this.code,
     required this.marks, required this.maxMarks, required this.attendancePercent,
+    this.credits = 3,
     required this.color, required this.icon,
   });
 
   double get percentage => (marks / maxMarks) * 100;
+  int get gradePoint {
+    final p = percentage;
+    if (p >= 90) return 10;
+    if (p >= 80) return 9;
+    if (p >= 70) return 8;
+    if (p >= 60) return 7;
+    if (p >= 50) return 6;
+    return 0;
+  }
+
   String get grade {
     final p = percentage;
     if (p >= 90) return 'O';
@@ -123,6 +135,33 @@ class SubjectModel {
     return 'C';
   }
   bool get isWeak => percentage < 65;
+
+  Map<String, dynamic> toMap() => {
+    'id': id, 'name': name, 'code': code,
+    'marks': marks, 'maxMarks': maxMarks, 'attendancePercent': attendancePercent,
+    'credits': credits, 'color': color.value, 'icon': icon.codePoint,
+  };
+
+  factory SubjectModel.fromMap(Map<String, dynamic> map) => SubjectModel(
+    id: map['id'] ?? '', name: map['name'] ?? '', code: map['code'] ?? '',
+    marks: (map['marks'] ?? 0.0).toDouble(),
+    maxMarks: (map['maxMarks'] ?? 100.0).toDouble(),
+    attendancePercent: (map['attendancePercent'] ?? 0.0).toDouble(),
+    credits: map['credits'] ?? 3,
+    color: Color(map['color'] ?? 0xFF1A73E8),
+    icon: IconData(map['icon'] ?? Icons.book.codePoint, fontFamily: 'MaterialIcons'),
+  );
+
+  SubjectModel copyWith({
+    double? marks, double? maxMarks, double? attendancePercent, int? credits,
+  }) => SubjectModel(
+    id: id, name: name, code: code,
+    marks: marks ?? this.marks,
+    maxMarks: maxMarks ?? this.maxMarks,
+    attendancePercent: attendancePercent ?? this.attendancePercent,
+    credits: credits ?? this.credits,
+    color: color, icon: icon,
+  );
 }
 
 // ─── Assignment Model ──────────────────────────────────────────────────────────
@@ -235,10 +274,27 @@ class HabitModel {
 
 // ─── Placement Skill Model ─────────────────────────────────────────────────────
 class SkillModel {
-  final String name, category;
+  final String id, name, category;
   final double proficiency;
   final Color color;
-  const SkillModel({required this.name, required this.category, required this.proficiency, required this.color});
+  const SkillModel({required this.id, required this.name, required this.category, required this.proficiency, required this.color});
+
+  Map<String, dynamic> toMap() => {
+    'id': id, 'name': name, 'category': category,
+    'proficiency': proficiency, 'color': color.value,
+  };
+
+  factory SkillModel.fromMap(Map<String, dynamic> map) => SkillModel(
+    id: map['id'] ?? '', name: map['name'] ?? '', category: map['category'] ?? '',
+    proficiency: (map['proficiency'] ?? 0.0).toDouble(),
+    color: Color(map['color'] ?? 0xFF1A73E8),
+  );
+
+  SkillModel copyWith({double? proficiency}) => SkillModel(
+    id: id, name: name, category: category,
+    proficiency: proficiency ?? this.proficiency,
+    color: color,
+  );
 }
 
 // ─── Notification Model ────────────────────────────────────────────────────────
@@ -275,6 +331,20 @@ class TimetableEntry {
     required this.color,
     required this.icon,
   });
+
+  Map<String, dynamic> toMap() => {
+    'id': id, 'subject': subject, 'code': code, 'room': room,
+    'startTime': startTime, 'endTime': endTime, 'dayIndex': dayIndex,
+    'color': color.value, 'icon': icon.codePoint,
+  };
+
+  factory TimetableEntry.fromMap(Map<String, dynamic> map) => TimetableEntry(
+    id: map['id'] ?? '', subject: map['subject'] ?? '', code: map['code'] ?? '',
+    room: map['room'] ?? '', startTime: map['startTime'] ?? '',
+    endTime: map['endTime'] ?? '', dayIndex: map['dayIndex'] ?? 0,
+    color: Color(map['color'] ?? 0xFF1A73E8),
+    icon: IconData(map['icon'] ?? Icons.book.codePoint, fontFamily: 'MaterialIcons'),
+  );
 
   TimetableEntry copyWith({
     String? subject, String? code, String? room,

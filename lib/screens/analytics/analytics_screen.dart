@@ -76,13 +76,13 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> with SingleTi
 }
 
 // ─── Marks Tab ────────────────────────────────────────────────────────────────
-class _MarksTab extends StatelessWidget {
+class _MarksTab extends ConsumerWidget {
   final bool isDark;
   const _MarksTab({required this.isDark});
 
   @override
-  Widget build(BuildContext context) {
-    final subjects = SampleData.subjects;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final subjects = ref.watch(subjectsProvider);
     final weakSubjects = subjects.where((s) => s.isWeak).toList();
 
     return SingleChildScrollView(
@@ -132,9 +132,15 @@ class _MarksTab extends StatelessWidget {
         const SizedBox(height: 24),
 
         // Subject Cards
-        Text('Subject Performance', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Subject Performance', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
+            Text('Tap to edit', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.primaryBlue)),
+          ],
+        ),
         const SizedBox(height: 12),
-        ...subjects.map((s) => _SubjectCard(subject: s, isDark: isDark)),
+        ...subjects.map((s) => _SubjectCard(subject: s, isDark: isDark, onTap: () => _showEditMarksDialog(context, ref, s))),
 
         if (weakSubjects.isNotEmpty) ...[
           const SizedBox(height: 20),
@@ -154,58 +160,89 @@ class _MarksTab extends StatelessWidget {
       ]),
     );
   }
+
+  void _showEditMarksDialog(BuildContext context, WidgetRef ref, SubjectModel s) {
+    final marksCtrl = TextEditingController(text: s.marks.toInt().toString());
+    final creditsCtrl = TextEditingController(text: s.credits.toString());
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Update ${s.name}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: marksCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Marks (out of 100)')),
+            TextField(controller: creditsCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Credits')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () {
+            final marks = double.tryParse(marksCtrl.text) ?? s.marks;
+            final credits = int.tryParse(creditsCtrl.text) ?? s.credits;
+            ref.read(subjectsProvider.notifier).updateMarks(s.id, marks);
+            ref.read(subjectsProvider.notifier).updateCredits(s.id, credits);
+            Navigator.pop(context);
+          }, child: const Text('Save')),
+        ],
+      ),
+    );
+  }
 }
 
 class _SubjectCard extends StatelessWidget {
   final SubjectModel subject;
   final bool isDark;
-  const _SubjectCard({required this.subject, required this.isDark});
+  final VoidCallback? onTap;
+  const _SubjectCard({required this.subject, required this.isDark, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: AppTheme.cardDecoration(isDark: isDark),
-      child: Row(children: [
-        Container(width: 40, height: 40, decoration: BoxDecoration(color: subject.color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-            child: Icon(subject.icon, color: subject.color, size: 20)),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(child: Text(subject.name, style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight), overflow: TextOverflow.ellipsis)),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(color: subject.color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
-              child: Text(subject.grade, style: GoogleFonts.inter(color: subject.color, fontWeight: FontWeight.bold, fontSize: 11)),
-            ),
-          ]),
-          const SizedBox(height: 6),
-          Row(children: [
-            Expanded(child: LinearProgressIndicator(
-              value: subject.percentage / 100,
-              backgroundColor: isDark ? AppTheme.borderDark : AppTheme.borderLight,
-              color: subject.color,
-              minHeight: 6,
-              borderRadius: BorderRadius.circular(4),
-            )),
-            const SizedBox(width: 8),
-            Text('${subject.percentage.toInt()}%', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: subject.color)),
-          ]),
-        ])),
-      ]),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: AppTheme.cardDecoration(isDark: isDark),
+        child: Row(children: [
+          Container(width: 40, height: 40, decoration: BoxDecoration(color: subject.color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+              child: Icon(subject.icon, color: subject.color, size: 20)),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Expanded(child: Text(subject.name, style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight), overflow: TextOverflow.ellipsis)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: subject.color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+                child: Text(subject.grade, style: GoogleFonts.inter(color: subject.color, fontWeight: FontWeight.bold, fontSize: 11)),
+              ),
+            ]),
+            const SizedBox(height: 6),
+            Row(children: [
+              Expanded(child: LinearProgressIndicator(
+                value: subject.percentage / 100,
+                backgroundColor: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                color: subject.color,
+                minHeight: 6,
+                borderRadius: BorderRadius.circular(4),
+              )),
+              const SizedBox(width: 8),
+              Text('${subject.percentage.toInt()}%', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: subject.color)),
+            ]),
+          ])),
+        ]),
+      ),
     );
   }
 }
 
-// ─── Attendance Tab ───────────────────────────────────────────────────────────
-class _AttendanceTab extends StatelessWidget {
+class _AttendanceTab extends ConsumerWidget {
   final bool isDark;
   const _AttendanceTab({required this.isDark});
 
   @override
-  Widget build(BuildContext context) {
-    final subjects = SampleData.subjects;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final subjects = ref.watch(subjectsProvider);
     final avg = subjects.fold(0.0, (s, e) => s + e.attendancePercent) / subjects.length;
 
     return SingleChildScrollView(
@@ -237,28 +274,60 @@ class _AttendanceTab extends StatelessWidget {
           ]),
         ),
         const SizedBox(height: 20),
-        ...subjects.map((s) => Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(14),
-          decoration: AppTheme.cardDecoration(isDark: isDark),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Icon(s.icon, color: s.color, size: 16),
-              const SizedBox(width: 8),
-              Expanded(child: Text(s.name, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight))),
-              Text('${s.attendancePercent.toInt()}%', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: s.attendancePercent >= 80 ? AppTheme.accentGreen : AppTheme.accentRed, fontSize: 13)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Subject Attendance', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
+            Text('Tap to edit', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.primaryBlue)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ...subjects.map((s) => GestureDetector(
+          onTap: () => _showEditAttendanceDialog(context, ref, s),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(14),
+            decoration: AppTheme.cardDecoration(isDark: isDark),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Icon(s.icon, color: s.color, size: 16),
+                const SizedBox(width: 8),
+                Expanded(child: Text(s.name, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight))),
+                Text('${s.attendancePercent.toInt()}%', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: s.attendancePercent >= 80 ? AppTheme.accentGreen : AppTheme.accentRed, fontSize: 13)),
+              ]),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: s.attendancePercent / 100,
+                color: s.attendancePercent >= 80 ? AppTheme.accentGreen : AppTheme.accentRed,
+                backgroundColor: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                minHeight: 7,
+                borderRadius: BorderRadius.circular(4),
+              ),
             ]),
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: s.attendancePercent / 100,
-              color: s.attendancePercent >= 80 ? AppTheme.accentGreen : AppTheme.accentRed,
-              backgroundColor: isDark ? AppTheme.borderDark : AppTheme.borderLight,
-              minHeight: 7,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ]),
+          ),
         )),
       ]),
+    );
+  }
+
+  void _showEditAttendanceDialog(BuildContext context, WidgetRef ref, SubjectModel s) {
+    final ctrl = TextEditingController(text: s.attendancePercent.toInt().toString());
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Update Attendance: ${s.name}'),
+        content: TextField(controller: ctrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Percentage (%)')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () {
+            final val = double.tryParse(ctrl.text) ?? s.attendancePercent;
+            ref.read(subjectsProvider.notifier).updateAttendance(s.id, val);
+            // Also update overall student attendance if necessary? 
+            // Better to compute it reactively in the dashboard.
+            Navigator.pop(context);
+          }, child: const Text('Save')),
+        ],
+      ),
     );
   }
 }

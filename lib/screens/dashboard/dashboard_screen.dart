@@ -31,9 +31,7 @@ class DashboardScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(20),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                _buildStatGrid(student, isDark),
-                const SizedBox(height: 24),
-                _buildAICard(isDark),
+                _buildStatGrid(student, isDark, context, ref),
                 const SizedBox(height: 24),
                 _SectionHeader(
                   title: "Today's Schedule",
@@ -134,50 +132,81 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatGrid(StudentModel student, bool isDark) {
+  Widget _buildStatGrid(StudentModel student, bool isDark, BuildContext context, WidgetRef ref) {
     return Row(
       children: [
         Expanded(child: Column(children: [
-          _StatCard(title: 'Current GPA', value: student.cgpa.toStringAsFixed(1), sub: 'Predicted: ${student.predictedCgpa.toStringAsFixed(1)}', icon: Icons.star_rounded, color: AppTheme.accentAmber, isDark: isDark),
+          _StatCard(
+            title: 'Current GPA',
+            value: student.cgpa.toStringAsFixed(1),
+            sub: 'Predicted: ${student.predictedCgpa.toStringAsFixed(1)}',
+            icon: Icons.star_rounded,
+            color: AppTheme.accentAmber,
+            isDark: isDark,
+            onTap: () => _showCGPACalculator(context, ref),
+          ),
           const SizedBox(height: 12),
-          _StatCard(title: 'Placement', value: '${student.placementScore.toInt()}%', sub: 'Industry Ready', icon: Icons.work_rounded, color: AppTheme.accentPurple, isDark: isDark),
+          _StatCard(
+            title: 'Placement',
+            value: '${student.placementScore.toInt()}%',
+            sub: 'Industry Ready',
+            icon: Icons.work_rounded,
+            color: AppTheme.accentPurple,
+            isDark: isDark,
+            onTap: () => context.push('/placement'),
+          ),
         ])),
         const SizedBox(width: 12),
         Expanded(child: Column(children: [
-          _StatCard(title: 'Attendance', value: '${student.attendancePercent.toInt()}%', sub: 'Safe zone ✅', icon: Icons.check_circle_rounded, color: AppTheme.accentGreen, isDark: isDark),
+          _StatCard(
+            title: 'Attendance',
+            value: '${student.attendancePercent.toInt()}%',
+            sub: 'Safe zone ✅',
+            icon: Icons.check_circle_rounded,
+            color: AppTheme.accentGreen,
+            isDark: isDark,
+            onTap: () => ref.read(navIndexProvider.notifier).state = 1, // Go to Analytics (Marks/Attendance)
+          ),
           const SizedBox(height: 12),
-          _StatCard(title: 'Streak', value: '${student.codingStreak}d', sub: 'Coding streak 🔥', icon: Icons.local_fire_department_rounded, color: AppTheme.accentRed, isDark: isDark),
+          _StatCard(
+            title: 'Streak',
+            value: '${student.codingStreak}d',
+            sub: 'Coding streak 🔥',
+            icon: Icons.local_fire_department_rounded,
+            color: AppTheme.accentRed,
+            isDark: isDark,
+            onTap: () => _showStreakEditor(context, ref, student.codingStreak),
+          ),
         ])),
       ],
     );
   }
 
-  Widget _buildAICard(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [const Color(0xFFE8F0FE), isDark ? AppTheme.cardDark : Colors.white], begin: Alignment.topLeft, end: Alignment.bottomRight),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.primaryBlue.withValues(alpha: 0.3), width: 1.5),
-        boxShadow: isDark ? [] : [BoxShadow(color: AppTheme.primaryBlue.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 4))],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: AppTheme.primaryBlue, borderRadius: BorderRadius.circular(14)),
-            child: const Icon(Icons.psychology_rounded, color: Colors.white, size: 26),
-          ),
-          const SizedBox(width: 14),
-          Expanded(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('AI Insight 🤖', style: GoogleFonts.inter(color: AppTheme.primaryBlue, fontWeight: FontWeight.bold, fontSize: 13)),
-              const SizedBox(height: 4),
-              Text('Your DBMS score (61%) is below average. Focus 2 extra hours this week to boost CGPA by 0.3 points!',
-                  style: GoogleFonts.inter(color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight, fontSize: 12, height: 1.5)),
-            ],
-          )),
+  void _showCGPACalculator(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => _CGPACalculatorDialog(isDark: ref.watch(themeProvider)),
+    );
+  }
+
+  void _showStreakEditor(BuildContext context, WidgetRef ref, int current) {
+    final ctrl = TextEditingController(text: current.toString());
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Update Coding Streak'),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Days'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () {
+            final val = int.tryParse(ctrl.text) ?? 0;
+            ref.read(studentProvider.notifier).updateField(codingStreak: val);
+            Navigator.pop(context);
+          }, child: const Text('Save')),
         ],
       ),
     );
@@ -353,31 +382,35 @@ class _StatCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final bool isDark;
-  const _StatCard({required this.title, required this.value, required this.sub, required this.icon, required this.color, this.isDark = false});
+  final VoidCallback? onTap;
+  const _StatCard({required this.title, required this.value, required this.sub, required this.icon, required this.color, this.isDark = false, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: AppTheme.cardDecoration(isDark: isDark),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, color: color, size: 18)),
-        const SizedBox(height: 14),
-        TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: double.tryParse(value.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0),
-          duration: const Duration(milliseconds: 1500),
-          curve: Curves.easeOutCubic,
-          builder: (_, val, __) {
-            String display = value.contains('%') ? '${val.toInt()}%' : value.contains('d') ? '${val.toInt()}d' : val.toStringAsFixed(1);
-            return Text(display, style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight));
-          },
-        ),
-        const SizedBox(height: 2),
-        Text(title, style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, fontWeight: FontWeight.w500)),
-        Text(sub, style: GoogleFonts.inter(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
-      ]),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: AppTheme.cardDecoration(isDark: isDark),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+              child: Icon(icon, color: color, size: 18)),
+          const SizedBox(height: 14),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: double.tryParse(value.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0),
+            duration: const Duration(milliseconds: 1500),
+            curve: Curves.easeOutCubic,
+            builder: (_, val, __) {
+              String display = value.contains('%') ? '${val.toInt()}%' : value.contains('d') ? '${val.toInt()}d' : val.toStringAsFixed(1);
+              return Text(display, style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight));
+            },
+          ),
+          const SizedBox(height: 2),
+          Text(title, style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, fontWeight: FontWeight.w500)),
+          Text(sub, style: GoogleFonts.inter(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
+        ]),
+      ),
     );
   }
 }
@@ -449,6 +482,66 @@ class _WeeklyChart extends StatelessWidget {
           ])),
         ),
       ),
+    );
+  }
+}
+
+// ─── CGPA Calculator Dialog ──────────────────────────────────────────────────
+class _CGPACalculatorDialog extends ConsumerStatefulWidget {
+  final bool isDark;
+  const _CGPACalculatorDialog({required this.isDark});
+  @override
+  ConsumerState<_CGPACalculatorDialog> createState() => _CGPACalculatorDialogState();
+}
+
+class _CGPACalculatorDialogState extends ConsumerState<_CGPACalculatorDialog> {
+  @override
+  Widget build(BuildContext context) {
+    final subjects = ref.watch(subjectsProvider);
+    double totalCredits = 0;
+    double weightedPoints = 0;
+
+    for (final s in subjects) {
+      totalCredits += s.credits;
+      weightedPoints += (s.gradePoint * s.credits);
+    }
+
+    final cgpa = totalCredits > 0 ? weightedPoints / totalCredits : 0.0;
+
+    return AlertDialog(
+      title: const Text('CGPA Calculator'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Calculated based on your marks:', style: GoogleFonts.inter(fontSize: 12)),
+            const SizedBox(height: 16),
+            ...subjects.map((s) => Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Row(
+                children: [
+                  Expanded(child: Text(s.name, style: GoogleFonts.inter(fontSize: 13))),
+                  Text('${s.grade} (${s.credits} cr)', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
+                ],
+              ),
+            )),
+            const Divider(),
+            const SizedBox(height: 8),
+            Text('Final CGPA', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+            Text(cgpa.toStringAsFixed(2), style: GoogleFonts.inter(fontSize: 32, fontWeight: FontWeight.bold, color: AppTheme.primaryBlue)),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+        ElevatedButton(
+          onPressed: () {
+            ref.read(studentProvider.notifier).updateField(cgpa: cgpa);
+            Navigator.pop(context);
+          },
+          child: const Text('Save to Profile'),
+        ),
+      ],
     );
   }
 }
