@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "145497380552",
+    "project_id": "studentinsight-ai-b7fbe",
+    "storage_bucket": "studentinsight-ai-b7fbe.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:145497380552:android:b917427466b676664177fd",
+        "android_client_info": {
+          "package_name": "com.assetmanager.asset_manager"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAJhOdaohs_MDguLilIk3gnE-jGQNvNi94"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
