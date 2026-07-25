@@ -13,15 +13,40 @@ class PlacementScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(themeProvider);
-    final student = ref.watch(studentProvider);
     final skills = ref.watch(skillsProvider);
+
+    // Auto-calculate placement readiness from all skills
+    final placementScore = skills.isNotEmpty
+        ? skills.fold(0.0, (sum, s) => sum + s.proficiency) / skills.length * 100
+        : 0.0;
+
+    String readinessLabel;
+    String targetCompanies;
+    if (placementScore >= 80) {
+      readinessLabel = 'Excellent! 🚀 Top Company Ready';
+      targetCompanies = 'Target: Google, Microsoft, Amazon';
+    } else if (placementScore >= 60) {
+      readinessLabel = 'Good Progress! 🎯';
+      targetCompanies = 'Target: TCS, Infosys, Wipro';
+    } else if (placementScore >= 40) {
+      readinessLabel = 'Keep Improving! 💪';
+      targetCompanies = 'Target: Entry-level companies';
+    } else {
+      readinessLabel = 'Just Getting Started! 📚';
+      targetCompanies = 'Focus on building skills first';
+    }
 
     return Scaffold(
       backgroundColor: isDark ? AppTheme.backgroundDark : AppTheme.backgroundLight,
       appBar: AppBar(
-        leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded), onPressed: () => Navigator.pop(context), color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () => Navigator.pop(context),
+          color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+        ),
         backgroundColor: Colors.transparent,
-        title: Text('Placement Module', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
+        title: Text('Placement Module',
+            style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
         actions: [
           IconButton(
             icon: const Icon(Icons.add_rounded, color: AppTheme.primaryBlue),
@@ -32,44 +57,48 @@ class PlacementScreen extends ConsumerWidget {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Readiness Card
-          GestureDetector(
-            onTap: () => _showUpdateReadinessDialog(context, ref, student.placementScore),
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: AppTheme.gradientDecoration(),
-              child: Row(children: [
-                CircularPercentIndicator(
-                  radius: 50,
-                  lineWidth: 10,
-                  percent: student.placementScore / 100,
-                  center: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text('${student.placementScore.toInt()}%', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18, height: 1.0)),
-                    Text('Ready', style: GoogleFonts.inter(color: Colors.white70, fontSize: 9)),
-                  ]),
-                  progressColor: Colors.white,
-                  backgroundColor: Colors.white30,
-                  circularStrokeCap: CircularStrokeCap.round,
-                ),
-                const SizedBox(width: 20),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Placement Readiness', style: GoogleFonts.inter(color: Colors.white70, fontSize: 12)),
-                  Text('Good Progress! 🎯', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                  const SizedBox(height: 8),
-                  Text('Target: TCS, Infosys, Wipro', style: GoogleFonts.inter(color: Colors.white70, fontSize: 12)),
-                ])),
-              ]),
-            ),
+
+          // ── Readiness Card (Auto-calculated from skills) ──────────────────
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: AppTheme.gradientDecoration(),
+            child: Row(children: [
+              CircularPercentIndicator(
+                radius: 50,
+                lineWidth: 10,
+                percent: (placementScore / 100).clamp(0.0, 1.0),
+                center: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Text('${placementScore.toInt()}%',
+                      style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18, height: 1.0)),
+                  Text('Ready', style: GoogleFonts.inter(color: Colors.white70, fontSize: 9)),
+                ]),
+                progressColor: Colors.white,
+                backgroundColor: Colors.white30,
+                circularStrokeCap: CircularStrokeCap.round,
+                animation: true,
+              ),
+              const SizedBox(width: 20),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Placement Readiness', style: GoogleFonts.inter(color: Colors.white70, fontSize: 12)),
+                Text(readinessLabel,
+                    style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                const SizedBox(height: 4),
+                Text('Auto-calculated from your skills ✨',
+                    style: GoogleFonts.inter(color: Colors.white60, fontSize: 10)),
+                const SizedBox(height: 6),
+                Text(targetCompanies, style: GoogleFonts.inter(color: Colors.white70, fontSize: 12)),
+              ])),
+            ]),
           ),
           const SizedBox(height: 24),
 
-          // ... (keep suggestions)
-
-          // Skills
+          // ── Technical Skills ──────────────────────────────────────────────
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Technical Skills', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
+              Text('Technical Skills',
+                  style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold,
+                      color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
               Text('Tap to edit', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.primaryBlue)),
             ],
           ),
@@ -85,16 +114,25 @@ class PlacementScreen extends ConsumerWidget {
                   Container(
                     width: 36, height: 36,
                     decoration: BoxDecoration(color: s.color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-                    child: Center(child: Text(s.name[0], style: GoogleFonts.inter(color: s.color, fontWeight: FontWeight.bold, fontSize: 14))),
+                    child: Center(child: Text(s.name[0],
+                        style: GoogleFonts.inter(color: s.color, fontWeight: FontWeight.bold, fontSize: 14))),
                   ),
                   const SizedBox(width: 12),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
-                      Expanded(child: Text(s.name, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight))),
-                      Text('${(s.proficiency * 100).toInt()}%', style: GoogleFonts.inter(color: s.color, fontWeight: FontWeight.bold, fontSize: 12)),
+                      Expanded(child: Text(s.name,
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13,
+                              color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight))),
+                      Text('${(s.proficiency * 100).toInt()}%',
+                          style: GoogleFonts.inter(color: s.color, fontWeight: FontWeight.bold, fontSize: 12)),
                     ]),
                     const SizedBox(height: 4),
-                    LinearProgressIndicator(value: s.proficiency, color: s.color, backgroundColor: isDark ? AppTheme.borderDark : AppTheme.borderLight, minHeight: 6, borderRadius: BorderRadius.circular(4)),
+                    LinearProgressIndicator(
+                        value: s.proficiency,
+                        color: s.color,
+                        backgroundColor: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                        minHeight: 6,
+                        borderRadius: BorderRadius.circular(4)),
                   ])),
                 ]),
               ),
@@ -102,9 +140,7 @@ class PlacementScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
 
-          // ... (keep companies)
-
-          // Mock Interview CTA
+          // ── Mock Interview CTA ────────────────────────────────────────────
           GestureDetector(
             onTap: () => context.push('/mock-interview'),
             child: Container(
@@ -118,8 +154,12 @@ class PlacementScreen extends ConsumerWidget {
                 const Icon(Icons.mic_rounded, color: AppTheme.accentGreen, size: 32),
                 const SizedBox(width: 16),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Mock Interview', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
-                  Text('Practice with AI-generated HR & technical questions', style: GoogleFonts.inter(fontSize: 12, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight)),
+                  Text('Mock Interview',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15,
+                          color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
+                  Text('Practice with AI-generated HR & technical questions',
+                      style: GoogleFonts.inter(fontSize: 12,
+                          color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight)),
                 ])),
                 const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppTheme.accentGreen),
               ]),
@@ -133,26 +173,43 @@ class PlacementScreen extends ConsumerWidget {
 
   void _showAddSkillDialog(BuildContext context, WidgetRef ref) {
     final nameCtrl = TextEditingController();
+    double proficiency = 0.5;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add New Skill'),
-        content: TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Skill Name')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          TextButton(onPressed: () {
-            if (nameCtrl.text.isNotEmpty) {
-              ref.read(skillsProvider.notifier).add(SkillModel(
-                id: DateTime.now().toString(),
-                name: nameCtrl.text,
-                category: 'Personal',
-                proficiency: 0.1,
-                color: AppTheme.primaryBlue,
-              ));
-            }
-            Navigator.pop(context);
-          }, child: const Text('Add')),
-        ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Add New Skill'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Skill Name (e.g. Flutter)')),
+              const SizedBox(height: 16),
+              Text('Proficiency: ${(proficiency * 100).toInt()}%'),
+              Slider(
+                value: proficiency,
+                onChanged: (v) => setDialogState(() => proficiency = v),
+                divisions: 10,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(onPressed: () {
+              if (nameCtrl.text.isNotEmpty) {
+                ref.read(skillsProvider.notifier).add(SkillModel(
+                  id: DateTime.now().toString(),
+                  name: nameCtrl.text,
+                  category: 'Programming',
+                  proficiency: proficiency,
+                  color: AppTheme.primaryBlue,
+                ));
+              }
+              Navigator.pop(context);
+            }, child: const Text('Add')),
+          ],
+        ),
       ),
     );
   }
@@ -190,25 +247,6 @@ class PlacementScreen extends ConsumerWidget {
             }, child: const Text('Save')),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showUpdateReadinessDialog(BuildContext context, WidgetRef ref, double current) {
-    final ctrl = TextEditingController(text: current.toInt().toString());
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Update Readiness'),
-        content: TextField(controller: ctrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Score (%)')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          TextButton(onPressed: () {
-            final val = double.tryParse(ctrl.text) ?? current;
-            ref.read(studentProvider.notifier).updateField(placementScore: val);
-            Navigator.pop(context);
-          }, child: const Text('Save')),
-        ],
       ),
     );
   }

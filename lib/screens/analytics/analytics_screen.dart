@@ -20,7 +20,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> with SingleTi
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 3, vsync: this);
+    _tab = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -60,7 +60,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> with SingleTi
           indicatorWeight: 3,
           labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
           unselectedLabelStyle: GoogleFonts.inter(fontSize: 13),
-          tabs: const [Tab(text: 'Marks'), Tab(text: 'Attendance'), Tab(text: 'Trends')],
+          tabs: const [Tab(text: 'Marks'), Tab(text: 'Attendance')],
         ),
       ),
       body: TabBarView(
@@ -68,7 +68,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> with SingleTi
         children: [
           _MarksTab(isDark: isDark),
           _AttendanceTab(isDark: isDark),
-          _TrendsTab(isDark: isDark, student: student),
         ],
       ),
     );
@@ -332,65 +331,6 @@ class _AttendanceTab extends ConsumerWidget {
   }
 }
 
-// ─── Trends Tab ───────────────────────────────────────────────────────────────
-class _TrendsTab extends StatelessWidget {
-  final bool isDark;
-  final dynamic student;
-  const _TrendsTab({required this.isDark, required this.student});
-
-  @override
-  Widget build(BuildContext context) {
-    final data = SampleData.semesterTrend;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('CGPA Trend', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
-        const SizedBox(height: 12),
-        Container(
-          height: 220,
-          padding: const EdgeInsets.all(16),
-          decoration: AppTheme.cardDecoration(isDark: isDark),
-          child: LineChart(LineChartData(
-            minY: 6, maxY: 10,
-            gridData: FlGridData(show: true, drawVerticalLine: false, getDrawingHorizontalLine: (_) => FlLine(color: isDark ? AppTheme.borderDark : AppTheme.borderLight, strokeWidth: 1)),
-            borderData: FlBorderData(show: false),
-            titlesData: FlTitlesData(
-              leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, getTitlesWidget: (v, _) {
-                final i = v.toInt();
-                if (i < data.length) return Text(data[i].semester, style: GoogleFonts.inter(fontSize: 10, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight));
-                return const SizedBox();
-              })),
-            ),
-            lineBarsData: [LineChartBarData(
-              spots: List.generate(data.length, (i) => FlSpot(i.toDouble(), data[i].cgpa)),
-              isCurved: true,
-              color: AppTheme.primaryBlue,
-              barWidth: 3,
-              dotData: FlDotData(show: true, getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(radius: 5, color: AppTheme.primaryBlue, strokeColor: Colors.white, strokeWidth: 2)),
-              belowBarData: BarAreaData(show: true, color: AppTheme.primaryBlue.withValues(alpha: 0.1)),
-            )],
-          )),
-        ),
-        const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: AppTheme.gradientDecoration(),
-          child: Row(children: [
-            const Icon(Icons.trending_up_rounded, color: Colors.white, size: 28),
-            const SizedBox(width: 14),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Predicted Next Sem', style: GoogleFonts.inter(color: Colors.white70, fontSize: 12)),
-              Text('CGPA: ${student.predictedCgpa.toStringAsFixed(1)} 🎯', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-            ]),
-          ]),
-        ),
-      ]),
-    );
-  }
-}
 
 class _MiniCard extends StatelessWidget {
   final String title, value;

@@ -23,8 +23,16 @@ class StudentInsightApp extends ConsumerWidget {
     final isDark = ref.watch(themeProvider);
 
     return init.when(
-      loading: () => const MaterialApp(home: Scaffold(body: Center(child: CircularProgressIndicator()))),
-      error: (err, stack) => MaterialApp(home: Scaffold(body: Center(child: Text('Error initializing app: $err')))),
+      loading: () => MaterialApp(
+        onGenerateRoute: (_) => MaterialPageRoute(
+          builder: (_) => const Scaffold(body: Center(child: CircularProgressIndicator())),
+        ),
+      ),
+      error: (err, stack) => MaterialApp(
+        onGenerateRoute: (_) => MaterialPageRoute(
+          builder: (_) => Scaffold(body: Center(child: Text('Error initializing app: $err'))),
+        ),
+      ),
       data: (_) {
         return MaterialApp.router(
           title: 'StudentInsight AI',

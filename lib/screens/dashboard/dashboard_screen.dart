@@ -133,22 +133,45 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildStatGrid(StudentModel student, bool isDark, BuildContext context, WidgetRef ref) {
+    final subjects = ref.watch(subjectsProvider);
+    final skills = ref.watch(skillsProvider);
+
+    // Auto-calculate CGPA
+    double totalCredits = 0;
+    double weightedPoints = 0;
+    double totalAttendance = 0;
+    for (final s in subjects) {
+      totalCredits += s.credits;
+      weightedPoints += (s.gradePoint * s.credits);
+      totalAttendance += s.attendancePercent;
+    }
+    final cgpa = totalCredits > 0 ? weightedPoints / totalCredits : 0.0;
+    final attendance = subjects.isNotEmpty ? totalAttendance / subjects.length : 0.0;
+
+    // Auto-calculate Placement Score (average of programming/technical skills)
+    final techSkills = skills.where((s) => s.category == 'Programming' || s.category == 'CS Core' || s.category == 'Database').toList();
+    double totalTechProficiency = 0;
+    for (final s in techSkills) {
+      totalTechProficiency += s.proficiency;
+    }
+    final placementScore = techSkills.isNotEmpty ? (totalTechProficiency / techSkills.length) * 100 : 0.0;
+
     return Row(
       children: [
         Expanded(child: Column(children: [
           _StatCard(
             title: 'Current GPA',
-            value: student.cgpa.toStringAsFixed(1),
+            value: cgpa.toStringAsFixed(2),
             sub: 'Predicted: ${student.predictedCgpa.toStringAsFixed(1)}',
             icon: Icons.star_rounded,
             color: AppTheme.accentAmber,
             isDark: isDark,
-            onTap: () => _showCGPACalculator(context, ref),
+            onTap: () {}, // Now read-only, driven by Subject Performance
           ),
           const SizedBox(height: 12),
           _StatCard(
             title: 'Placement',
-            value: '${student.placementScore.toInt()}%',
+            value: '${placementScore.toInt()}%',
             sub: 'Industry Ready',
             icon: Icons.work_rounded,
             color: AppTheme.accentPurple,
@@ -160,12 +183,12 @@ class DashboardScreen extends ConsumerWidget {
         Expanded(child: Column(children: [
           _StatCard(
             title: 'Attendance',
-            value: '${student.attendancePercent.toInt()}%',
-            sub: 'Safe zone ✅',
+            value: '${attendance.toInt()}%',
+            sub: attendance >= 75 ? 'Safe zone ✅' : 'Danger zone ⚠️',
             icon: Icons.check_circle_rounded,
             color: AppTheme.accentGreen,
             isDark: isDark,
-            onTap: () => ref.read(navIndexProvider.notifier).state = 1, // Go to Analytics (Marks/Attendance)
+            onTap: () => ref.read(navIndexProvider.notifier).state = 1, // Go to Analytics
           ),
           const SizedBox(height: 12),
           _StatCard(
@@ -175,36 +198,28 @@ class DashboardScreen extends ConsumerWidget {
             icon: Icons.local_fire_department_rounded,
             color: AppTheme.accentRed,
             isDark: isDark,
-            onTap: () => _showStreakEditor(context, ref, student.codingStreak),
+            onTap: () {}, // Auto-increments daily
           ),
         ])),
       ],
     );
   }
 
-  void _showCGPACalculator(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (context) => _CGPACalculatorDialog(isDark: ref.watch(themeProvider)),
-    );
-  }
-
-  void _showStreakEditor(BuildContext context, WidgetRef ref, int current) {
-    final ctrl = TextEditingController(text: current.toString());
+  void _showStatEditor(BuildContext context, WidgetRef ref, String title, String label, String current, void Function(String) onSave) {
+    final ctrl = TextEditingController(text: current);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Update Coding Streak'),
+        title: Text(title),
         content: TextField(
           controller: ctrl,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Days'),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(labelText: label),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(onPressed: () {
-            final val = int.tryParse(ctrl.text) ?? 0;
-            ref.read(studentProvider.notifier).updateField(codingStreak: val);
+            onSave(ctrl.text);
             Navigator.pop(context);
           }, child: const Text('Save')),
         ],
@@ -486,62 +501,3 @@ class _WeeklyChart extends StatelessWidget {
   }
 }
 
-// ─── CGPA Calculator Dialog ──────────────────────────────────────────────────
-class _CGPACalculatorDialog extends ConsumerStatefulWidget {
-  final bool isDark;
-  const _CGPACalculatorDialog({required this.isDark});
-  @override
-  ConsumerState<_CGPACalculatorDialog> createState() => _CGPACalculatorDialogState();
-}
-
-class _CGPACalculatorDialogState extends ConsumerState<_CGPACalculatorDialog> {
-  @override
-  Widget build(BuildContext context) {
-    final subjects = ref.watch(subjectsProvider);
-    double totalCredits = 0;
-    double weightedPoints = 0;
-
-    for (final s in subjects) {
-      totalCredits += s.credits;
-      weightedPoints += (s.gradePoint * s.credits);
-    }
-
-    final cgpa = totalCredits > 0 ? weightedPoints / totalCredits : 0.0;
-
-    return AlertDialog(
-      title: const Text('CGPA Calculator'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Calculated based on your marks:', style: GoogleFonts.inter(fontSize: 12)),
-            const SizedBox(height: 16),
-            ...subjects.map((s) => Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: Row(
-                children: [
-                  Expanded(child: Text(s.name, style: GoogleFonts.inter(fontSize: 13))),
-                  Text('${s.grade} (${s.credits} cr)', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
-                ],
-              ),
-            )),
-            const Divider(),
-            const SizedBox(height: 8),
-            Text('Final CGPA', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-            Text(cgpa.toStringAsFixed(2), style: GoogleFonts.inter(fontSize: 32, fontWeight: FontWeight.bold, color: AppTheme.primaryBlue)),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-        ElevatedButton(
-          onPressed: () {
-            ref.read(studentProvider.notifier).updateField(cgpa: cgpa);
-            Navigator.pop(context);
-          },
-          child: const Text('Save to Profile'),
-        ),
-      ],
-    );
-  }
-}

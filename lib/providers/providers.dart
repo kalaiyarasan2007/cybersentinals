@@ -78,12 +78,16 @@ final initializationProvider = FutureProvider<void>((ref) async {
   try {
     // Load student data from persistence first
     final persistedStudent = await PersistenceService.loadStudent();
-    if (persistedStudent != null) {
-      ref.read(currentUserProvider.notifier).state = persistedStudent;
-    } else {
-      final studentData = await ref.read(authRepositoryProvider).getCurrentUser();
-      ref.read(currentUserProvider.notifier).state = studentData;
-      if (studentData != null) PersistenceService.saveStudent(studentData);
+      if (persistedStudent != null) {
+        ref.read(currentUserProvider.notifier).state = persistedStudent;
+        ref.read(studentProvider.notifier).checkDailyStreak();
+      } else {
+        final studentData = await ref.read(authRepositoryProvider).getCurrentUser();
+      if (studentData != null) {
+        PersistenceService.saveStudent(studentData);
+        ref.read(currentUserProvider.notifier).state = studentData;
+        ref.read(studentProvider.notifier).checkDailyStreak();
+      }
     }
   } catch (_) {}
 });
@@ -129,6 +133,35 @@ class StudentNotifier extends StateNotifier<StudentModel> {
       codingStreak: codingStreak,
     );
     PersistenceService.saveStudent(state);
+  }
+
+  void checkDailyStreak() {
+    final now = DateTime.now();
+    final lastLogin = state.lastLogin;
+    
+    // Normalize to dates only (ignoring time)
+    final todayDate = DateTime(now.year, now.month, now.day);
+    if (lastLogin == null) {
+      state = state.copyWith(codingStreak: 1, lastLogin: now);
+      PersistenceService.saveStudent(state);
+      return;
+    }
+    final lastLoginDate = DateTime(lastLogin.year, lastLogin.month, lastLogin.day);
+    
+    if (todayDate.isAfter(lastLoginDate)) {
+      // It's a new day! Check if it's the very next day for streak continuation
+      final difference = todayDate.difference(lastLoginDate).inDays;
+      int newStreak = state.codingStreak;
+      
+      if (difference == 1) {
+        newStreak += 1; // Continous streak
+      } else if (difference > 1) {
+        newStreak = 1; // Streak broken, reset to 1
+      }
+      
+      state = state.copyWith(codingStreak: newStreak, lastLogin: now);
+      PersistenceService.saveStudent(state);
+    }
   }
 }
 
@@ -241,8 +274,15 @@ class AIChatNotifier extends StateNotifier<List<ChatMessage>> {
   Future<void> sendMessage(String text) async {
     addMessage(text, true);
     _isLoading = true;
-    await Future.delayed(const Duration(milliseconds: 1400));
-    addMessage(AIResponseEngine.generate(text), false);
+    // Add a "thinking" placeholder
+    final thinkingId = '${DateTime.now().millisecondsSinceEpoch}_thinking';
+    state = [...state, ChatMessage(id: thinkingId, text: '...', isUser: false, time: DateTime.now())];
+    
+    final response = await AIResponseEngine.generateAsync(text);
+    
+    // Remove thinking placeholder and add real response
+    state = state.where((m) => m.id != thinkingId).toList();
+    addMessage(response, false);
     _isLoading = false;
   }
 }
@@ -271,11 +311,32 @@ class HabitNotifier extends StateNotifier<List<HabitModel>> {
 final pomodoroProvider = StateNotifierProvider<PomodoroNotifier, PomodoroState>((ref) => PomodoroNotifier());
 
 class PomodoroState {
-  final int minutes, seconds, completedSessions;
+  final int minutes, seconds, completedSessions, totalInitialMinutes;
   final bool isRunning, isBreak;
-  const PomodoroState({this.minutes = 25, this.seconds = 0, this.completedSessions = 0, this.isRunning = false, this.isBreak = false});
-  PomodoroState copyWith({int? minutes, int? seconds, int? completedSessions, bool? isRunning, bool? isBreak}) =>
-      PomodoroState(minutes: minutes ?? this.minutes, seconds: seconds ?? this.seconds, completedSessions: completedSessions ?? this.completedSessions, isRunning: isRunning ?? this.isRunning, isBreak: isBreak ?? this.isBreak);
+  final String subject;
+
+  const PomodoroState({
+    this.minutes = 25, 
+    this.seconds = 0, 
+    this.completedSessions = 0, 
+    this.isRunning = false, 
+    this.isBreak = false,
+    this.totalInitialMinutes = 25,
+    this.subject = '',
+  });
+
+  PomodoroState copyWith({
+    int? minutes, int? seconds, int? completedSessions, 
+    bool? isRunning, bool? isBreak, int? totalInitialMinutes, String? subject
+  }) => PomodoroState(
+    minutes: minutes ?? this.minutes, 
+    seconds: seconds ?? this.seconds, 
+    completedSessions: completedSessions ?? this.completedSessions, 
+    isRunning: isRunning ?? this.isRunning, 
+    isBreak: isBreak ?? this.isBreak,
+    totalInitialMinutes: totalInitialMinutes ?? this.totalInitialMinutes,
+    subject: subject ?? this.subject,
+  );
 }
 
 class PomodoroNotifier extends StateNotifier<PomodoroState> {
@@ -296,11 +357,30 @@ class PomodoroNotifier extends StateNotifier<PomodoroState> {
       }
     }
   }
-  void setDuration(int mins) => state = PomodoroState(minutes: mins);
+  void setDuration(int mins, {String subject = ''}) => state = PomodoroState(minutes: mins, totalInitialMinutes: mins, subject: subject);
 }
 
-// ─── Notifications Provider ───────────────────────────────────────────────────
-final notificationsProvider = StateProvider<List<AppNotification>>((ref) => SampleData.notifications);
+// ─── Notifications Provider ─────────────────────────────────────────────────────
+final notificationsProvider = StateNotifierProvider<NotificationsNotifier, List<AppNotification>>(
+  (ref) => NotificationsNotifier());
+
+class NotificationsNotifier extends StateNotifier<List<AppNotification>> {
+  NotificationsNotifier() : super([]);
+
+  void add(AppNotification n) {
+    state = [n, ...state];
+  }
+
+  void markAllRead() {
+    state = state.map((n) => AppNotification(
+      id: n.id, title: n.title, body: n.body, type: n.type, time: n.time, isRead: true,
+    )).toList();
+  }
+
+  void delete(String id) {
+    state = state.where((n) => n.id != id).toList();
+  }
+}
 
 // ─── Timetable Provider ───────────────────────────────────────────────────────
 final timetableProvider = StateNotifierProvider<TimetableNotifier, List<TimetableEntry>>((ref) => TimetableNotifier());
@@ -359,7 +439,30 @@ class CalendarEventsNotifier extends StateNotifier<List<CalendarEvent>> {
     ];
   }
 
-  void add(CalendarEvent event) => state = [...state, event];
+  void add(CalendarEvent event, {WidgetRef? ref, BuildContext? context}) {
+    state = [...state, event];
+  }
+
+  void addWithNotification(CalendarEvent event, void Function(AppNotification) onNotify) {
+    state = [...state, event];
+    final now = DateTime.now();
+    final diff = event.date.difference(now);
+    String timeStr;
+    if (diff.inDays > 0) {
+      timeStr = 'in ${diff.inDays} day${diff.inDays == 1 ? '' : 's'}';
+    } else if (diff.inHours > 0) {
+      timeStr = 'in ${diff.inHours} hour${diff.inHours == 1 ? '' : 's'}';
+    } else {
+      timeStr = 'soon';
+    }
+    onNotify(AppNotification(
+      id: 'cal_${event.id}',
+      title: '📅 ${event.title}',
+      body: '${(event.description?.isNotEmpty ?? false) ? event.description : event.title} — $timeStr',
+      type: event.type,
+      time: now,
+    ));
+  }
   void delete(String id) => state = state.where((e) => e.id != id).toList();
 
   List<CalendarEvent> forDate(DateTime date) => state.where((e) =>

@@ -590,14 +590,18 @@ class _AddEventSheetState extends ConsumerState<_AddEventSheet> {
   void _save() {
     if (!_formKey.currentState!.validate()) return;
     final selectedType = _types.firstWhere((t) => t['value'] == _type);
-    ref.read(calendarEventsProvider.notifier).add(CalendarEvent(
+    final event = CalendarEvent(
       id: const Uuid().v4(),
       title: _titleCtrl.text.trim(),
       type: _type,
       date: _date,
       description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
       color: selectedType['color'] as Color,
-    ));
+    );
+    ref.read(calendarEventsProvider.notifier).addWithNotification(
+      event,
+      (notification) => ref.read(notificationsProvider.notifier).add(notification),
+    );
     Navigator.pop(context);
   }
 

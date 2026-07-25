@@ -90,7 +90,9 @@ class _DayView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final entries = ref.watch(timetableProvider.notifier).forDay(dayIndex);
+    // Watch the state so the UI rebuilds when entries are added
+    ref.watch(timetableProvider);
+    final entries = ref.read(timetableProvider.notifier).forDay(dayIndex);
 
     if (entries.isEmpty) {
       return Center(
